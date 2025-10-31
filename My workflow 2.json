@@ -1,0 +1,314 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        48
+      ],
+      "id": "477dc242-ec52-46f3-bb33-95489862ab66",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"keywords\": [\"AI\", \"startup\", \"finance\", \"TRU\", \"Canada\", \"education\", \"biology\", \"space\", \"NASA\", \"software\", \"web development\"],\n  \"feeds\": [\n    \n    \"https://techcrunch.com/feed/\",\n    \"https://feeds.arstechnica.com/arstechnica/index\",\n    \"https://www.cbc.ca/cmlink/rss-topstories\",\n    \"https://globalnews.ca/feed\"\n  \n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        160,
+        -96
+      ],
+      "id": "5bf509b1-e745-4bb4-8e24-8628dad83fa9",
+      "name": "Set Intrests"
+    },
+    {
+      "parameters": {
+        "jsCode": "const feeds = ($json.feeds || []).map(s => (s || '').trim());\nconst keywords = $json.keywords || [];\n\nreturn feeds.map(f => ({ json: { feed: f, keywords } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        80
+      ],
+      "id": "68ada7e3-e240-4209-9696-b1022519f81d",
+      "name": "Code in JavaScript",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "url": "={{$json[\"feed\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        352,
+        -64
+      ],
+      "id": "7411c770-d8b3-4325-9d50-8bd16ee6241a",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "dataPropertyName": "=data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [
+        496,
+        96
+      ],
+      "id": "3227f19e-5182-4806-a536-891dc3b460ce",
+      "name": "XML"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  const channel = item.json?.rss?.channel;;\n  \n  if (!channel) continue;\n\n \n  const items = Array.isArray(channel.item) ? channel.item : [channel.item];\n\n  for (const entry of items) {\n    \n    const getText = (field) => {\n      if (!field) return \"\";\n      if (Array.isArray(field)) {\n        const val = field[0];\n        if (typeof val === \"string\") return val;\n        if (typeof val === \"object\") return val._ || \"\";\n      }\n      if (typeof field === \"object\") return field._ || \"\";\n      return String(field);\n    };\n\n    const title = getText(entry.title);\n    const link = getText(entry.link);\n    const desc = getText(entry.description) || getText(entry[\"content:encoded\"]);\n    const date = getText(entry.pubDate);\n    const source = (link.split(\"/\")[2] || \"unknown\").toLowerCase();\n\n    results.push({ json: { title, link, description: desc, pubDate: date, source } });\n  }\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -64
+      ],
+      "id": "940f0a4f-af53-4d52-82f3-49704f6e1010",
+      "name": "Code in JavaScript1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect all parsed articles\nconst articles = $input.all().map(i => i.json);\n\n// Your interest keywords\nconst keywords = [\n  \"AI\", \"startup\", \"finance\", \"TRU\", \"Canada\",\n  \"education\", \"biology\", \"space\", \"NASA\", \"software\", \"web development\"\n].map(k => k.toLowerCase());\n\n// Score each article by keyword match\nconst scored = articles.map(a => {\n  const text = (a.title + \" \" + a.description).toLowerCase();\n  const score = keywords.reduce((sum, k) => sum + (text.includes(k) ? 1 : 0), 0);\n  return { ...a, score };\n});\n\n// Keep only relevant ones (score ≥ 1)\nconst filtered = scored.filter(a => a.score > 0);\n\n// Sort by score (best first)\nfiltered.sort((a, b) => b.score - a.score);\n\n// Limit to top 10\nreturn filtered.slice(0, 10).map(a => ({ json: a }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        112
+      ],
+      "id": "54cdbed1-a771-4207-9130-341f41066636",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a crisp news summarizer. Summarize ONLY the information provided.\n\nTitle: {{$json[\"title\"]}}\nSource: {{$json[\"source\"]}}\nPublished: {{$json[\"pubDate\"]}}\nDescription/Body: {{$json[\"description\"] || \"\"}}\n\nRequirements:\n- 2 sentences max.\n- No hype or speculation; don't add facts not present above.\n- Start with a bolded headline-style fragment, then a clear takeaway.\n- If key details are missing, state the essence without guessing.\n- Include the source in parentheses at the end.\n\nReturn just the summary text (no extra wording).\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        768,
+        -80
+      ],
+      "id": "eb64035c-4e47-4818-90c9-4c6f47cb0c34",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "Ha9263zeQZMy8cpu",
+          "name": "n8n main"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// items coming from the LLM (each has summary or text)\nconst llmItems = $input.all();\n\n// originals from the earlier node (title, link, source, pubDate ...)\n// get the same-index item from that node\nconst originals = $items('Code in JavaScript1', 0); // 0=input index\n\nconst out = llmItems.map((itm, idx) => {\n  const base = originals[idx]?.json ?? {};\n  const summary = itm.json.summary || itm.json.text || itm.json.response || '';\n  return { json: { ...base, summary } };\n});\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        128
+      ],
+      "id": "6b2cf0a1-a392-4972-9b94-cc535665a2c4",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map(i => i.json);\n\n// take first 10 sane items\nconst top = items.filter(a => a && (a.title || a.link)).slice(0, 10);\n\nconst day = new Date().toISOString().slice(0,10);\nconst subject = `Daily Digest — ${day}`;\n\nconst list = top.map(a => {\n  const title = (a.title ?? '(untitled)').toString();\n  const link = (a.link ?? '#').toString();\n  const source = a.source ? ` — ${a.source}` : '';\n  const date = a.pubDate ? ` • ${a.pubDate}` : '';\n  const summary = a.summary ? `<div style=\"color:#555;margin-top:4px;\">${a.summary}</div>` : '';\n  return `<li style=\"margin:10px 0;\">\n            <a href=\"${link}\" target=\"_blank\">${title}</a>\n            <span style=\"color:#666;\">${source}${date}</span>\n            ${summary}\n          </li>`;\n}).join(\"\");\n\nconst html = `\n<div style=\"font-family:system-ui,-apple-system,Segoe UI,Arial; line-height:1.45;\">\n  <h2>📰 Daily AI & Tech Digest — ${day}</h2>\n  <ol style=\"padding-left:18px;\">${list || '<li>No stories found.</li>'}</ol>\n  <p style=\"color:#666;\">Automated by n8n 🤖</p>\n</div>\n`;\n\nreturn [{ json: { subject, html, day } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        320
+      ],
+      "id": "9afc1362-7783-483a-96de-84eaf8261b9c",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "sendTo": "fazilpadaniya20@gmail.com",
+        "subject": "={{$json[\"subject\"]}}",
+        "message": "={{$json[\"html\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1136,
+        64
+      ],
+      "id": "50f60a43-b00a-4c23-a63b-8cdd2c02248d",
+      "name": "Send a message",
+      "webhookId": "0cb559a7-0200-4d57-9fd7-83be062c7395",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "qLgkwlomAExKihLo",
+          "name": "Gmail account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Intrests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Intrests": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "XML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "XML": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e2c973fa-6013-44c2-9103-4bd6d25cd1a7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f9e1a577521f27d09e63fb97f295cf740a4bf03ebb4bebc7f6c2c0dc95aeee0c"
+  },
+  "id": "TxDFm6mFPMwYFO2R",
+  "tags": []
+}
