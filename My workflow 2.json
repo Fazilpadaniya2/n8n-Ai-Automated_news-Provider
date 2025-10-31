@@ -14,11 +14,48 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        0,
-        48
+        -272,
+        -16
       ],
       "id": "477dc242-ec52-46f3-bb33-95489862ab66",
       "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "={{$json[\"feed\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        272,
+        64
+      ],
+      "id": "7411c770-d8b3-4325-9d50-8bd16ee6241a",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "sendTo": "fazilpadaniya20@gmail.com",
+        "subject": "={{$json[\"subject\"]}}",
+        "message": "={{$json[\"html\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1824,
+        -112
+      ],
+      "id": "50f60a43-b00a-4c23-a63b-8cdd2c02248d",
+      "name": "Send a message",
+      "webhookId": "0cb559a7-0200-4d57-9fd7-83be062c7395",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "qLgkwlomAExKihLo",
+          "name": "Gmail account 2"
+        }
+      }
     },
     {
       "parameters": {
@@ -29,11 +66,11 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        160,
-        -96
+        -64,
+        64
       ],
       "id": "5bf509b1-e745-4bb4-8e24-8628dad83fa9",
-      "name": "Set Intrests"
+      "name": "Select Interests"
     },
     {
       "parameters": {
@@ -42,26 +79,12 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        256,
-        80
+        80,
+        -32
       ],
       "id": "68ada7e3-e240-4209-9696-b1022519f81d",
-      "name": "Code in JavaScript",
+      "name": "Fetch RSS Feeds",
       "executeOnce": true
-    },
-    {
-      "parameters": {
-        "url": "={{$json[\"feed\"]}}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        352,
-        -64
-      ],
-      "id": "7411c770-d8b3-4325-9d50-8bd16ee6241a",
-      "name": "HTTP Request"
     },
     {
       "parameters": {
@@ -71,11 +94,11 @@
       "type": "n8n-nodes-base.xml",
       "typeVersion": 1,
       "position": [
-        496,
-        96
+        432,
+        -16
       ],
       "id": "3227f19e-5182-4806-a536-891dc3b460ce",
-      "name": "XML"
+      "name": "Parse XML Feeds"
     },
     {
       "parameters": {
@@ -84,11 +107,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        560,
+        592,
         -64
       ],
       "id": "940f0a4f-af53-4d52-82f3-49704f6e1010",
-      "name": "Code in JavaScript1",
+      "name": "Normalize Feed Items",
       "alwaysOutputData": true
     },
     {
@@ -98,11 +121,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        720,
-        112
+        656,
+        160
       ],
       "id": "54cdbed1-a771-4207-9130-341f41066636",
-      "name": "Code in JavaScript2"
+      "name": "Filter & Merge Top Articles"
     },
     {
       "parameters": {
@@ -125,11 +148,11 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2,
       "position": [
-        768,
-        -80
+        864,
+        16
       ],
       "id": "eb64035c-4e47-4818-90c9-4c6f47cb0c34",
-      "name": "Message a model",
+      "name": "Summarize Articles with gpttt",
       "credentials": {
         "openAiApi": {
           "id": "Ha9263zeQZMy8cpu",
@@ -139,16 +162,16 @@
     },
     {
       "parameters": {
-        "jsCode": "// items coming from the LLM (each has summary or text)\nconst llmItems = $input.all();\n\n// originals from the earlier node (title, link, source, pubDate ...)\n// get the same-index item from that node\nconst originals = $items('Code in JavaScript1', 0); // 0=input index\n\nconst out = llmItems.map((itm, idx) => {\n  const base = originals[idx]?.json ?? {};\n  const summary = itm.json.summary || itm.json.text || itm.json.response || '';\n  return { json: { ...base, summary } };\n});\n\nreturn out;\n"
+        "jsCode": "// items coming from the LLM (each has summary or text)\nconst llmItems = $input.all();\n\n// originals from the earlier node (title, link, source, pubDate ...)\n// get the same-index item from that node\nconst originals = $items('Normalize Feed Items', 0); // 0=input index\n\nconst out = llmItems.map((itm, idx) => {\n  const base = originals[idx]?.json ?? {};\n  const summary = itm.json.summary || itm.json.text || itm.json.response || '';\n  return { json: { ...base, summary } };\n});\n\nreturn out;\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        928,
-        128
+        1216,
+        -96
       ],
       "id": "6b2cf0a1-a392-4972-9b94-cc535665a2c4",
-      "name": "Code in JavaScript3"
+      "name": "Merge Summaries with Articles"
     },
     {
       "parameters": {
@@ -157,34 +180,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1008,
-        320
+        1424,
+        16
       ],
       "id": "9afc1362-7783-483a-96de-84eaf8261b9c",
-      "name": "Code in JavaScript4"
-    },
-    {
-      "parameters": {
-        "sendTo": "fazilpadaniya20@gmail.com",
-        "subject": "={{$json[\"subject\"]}}",
-        "message": "={{$json[\"html\"]}}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [
-        1136,
-        64
-      ],
-      "id": "50f60a43-b00a-4c23-a63b-8cdd2c02248d",
-      "name": "Send a message",
-      "webhookId": "0cb559a7-0200-4d57-9fd7-83be062c7395",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "qLgkwlomAExKihLo",
-          "name": "Gmail account 2"
-        }
-      }
+      "name": "Build HTML Email Body"
     }
   ],
   "pinData": {},
@@ -193,29 +193,7 @@
       "main": [
         [
           {
-            "node": "Set Intrests",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Set Intrests": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code in JavaScript": {
-      "main": [
-        [
-          {
-            "node": "HTTP Request",
+            "node": "Select Interests",
             "type": "main",
             "index": 0
           }
@@ -226,69 +204,91 @@
       "main": [
         [
           {
-            "node": "XML",
+            "node": "Parse XML Feeds",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "XML": {
+    "Select Interests": {
       "main": [
         [
           {
-            "node": "Code in JavaScript1",
+            "node": "Fetch RSS Feeds",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code in JavaScript1": {
+    "Fetch RSS Feeds": {
       "main": [
         [
           {
-            "node": "Code in JavaScript2",
+            "node": "HTTP Request",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code in JavaScript2": {
+    "Parse XML Feeds": {
       "main": [
         [
           {
-            "node": "Message a model",
+            "node": "Normalize Feed Items",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Message a model": {
+    "Normalize Feed Items": {
       "main": [
         [
           {
-            "node": "Code in JavaScript3",
+            "node": "Filter & Merge Top Articles",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code in JavaScript3": {
+    "Filter & Merge Top Articles": {
       "main": [
         [
           {
-            "node": "Code in JavaScript4",
+            "node": "Summarize Articles with gpttt",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code in JavaScript4": {
+    "Summarize Articles with gpttt": {
+      "main": [
+        [
+          {
+            "node": "Merge Summaries with Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Summaries with Articles": {
+      "main": [
+        [
+          {
+            "node": "Build HTML Email Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build HTML Email Body": {
       "main": [
         [
           {
@@ -304,7 +304,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "e2c973fa-6013-44c2-9103-4bd6d25cd1a7",
+  "versionId": "84577fd0-ccfb-4615-9c9a-22afaf3811f4",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "f9e1a577521f27d09e63fb97f295cf740a4bf03ebb4bebc7f6c2c0dc95aeee0c"
