@@ -1,0 +1,7 @@
+# Dependencies / local junk
+node_modules/
+.env
+*.log
+.DS_Store
+.env
+.env
